@@ -18,6 +18,7 @@ const api = {
   
   // 目录操作
   listDirectoryFiles: (dirPath) => ipcRenderer.invoke('list-directory-files', dirPath),
+  scanDirectoryTree: (rootPath) => ipcRenderer.invoke('scan-directory-tree', rootPath),
   checkFileExists: (filePath) => ipcRenderer.invoke('check-file-exists', filePath),
   
   // 路径操作

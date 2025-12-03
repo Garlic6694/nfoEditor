@@ -156,6 +156,50 @@ app.whenReady().then(() => {
     return join(...paths)
   })
   
+  // 递归扫描目录树
+  ipcMain.handle('scan-directory-tree', async (event, rootPath) => {
+    try {
+      const scan = (dirPath) => {
+        const name = basename(dirPath)
+        const node = {
+          label: name,
+          path: dirPath,
+          children: []
+        }
+
+        try {
+          const files = fs.readdirSync(dirPath)
+          
+          for (const file of files) {
+            // 跳过隐藏文件
+            if (file.startsWith('.')) continue
+            
+            const filePath = join(dirPath, file)
+            try {
+              const stats = fs.statSync(filePath)
+              if (stats.isDirectory()) {
+                node.children.push(scan(filePath))
+              }
+            } catch (e) {
+              // 忽略无法访问的文件/目录
+            }
+          }
+        } catch (e) {
+          // 忽略无法读取的目录
+        }
+        
+        // 按名称排序
+        node.children.sort((a, b) => a.label.localeCompare(b.label))
+        
+        return node
+      }
+
+      return { success: true, data: [scan(rootPath)] }
+    } catch (error) {
+      return { success: false, error: error.message }
+    }
+  })
+
   // 获取文件名
   ipcMain.handle('get-basename', async (event, filePath) => {
     return basename(filePath)

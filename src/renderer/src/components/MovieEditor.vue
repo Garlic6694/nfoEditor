@@ -227,12 +227,6 @@ const movieData = ref({ ...props.modelValue })
 const premieredDate = ref(props.modelValue.premiered || '')
 const saving = ref(false)
 
-// 监听父组件传入的数据变化
-watch(() => props.modelValue, (newValue) => {
-  movieData.value = { ...newValue }
-  premieredDate.value = newValue.premiered || ''
-}, { deep: true })
-
 // 监听本地数据变化，通知父组件
 watch(movieData, (newValue) => {
   emit('update:modelValue', newValue)
