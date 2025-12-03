@@ -1,0 +1,247 @@
+<template>
+  <div id="app" class="nfo-editor-app">
+    <div class="app-header">
+      <h1 class="app-title">
+        <el-icon class="title-icon"><Film /></el-icon>
+        Jellyfin NFO 编辑器
+      </h1>
+      <p class="app-subtitle">电影元数据管理工具</p>
+    </div>
+
+    <div class="app-content">
+      <el-container>
+        <!-- 左侧：目录选择和图片管理 -->
+        <el-aside width="400px" class="sidebar">
+          <div class="sidebar-content">
+            <!-- 目录选择 -->
+            <DirectorySelector
+              ref="dirSelector"
+              @directory-selected="handleDirectorySelected"
+              @refresh="handleRefresh"
+            />
+
+            <!-- 图片管理 -->
+            <div class="images-section">
+              <el-tabs v-model="activeImageTab" type="border-card">
+                <el-tab-pane label="海报图" name="poster">
+                  <ImageEditor
+                    title="海报图 (Poster)"
+                    default-filename="poster.jpg"
+                    :default-width="1000"
+                    :default-height="1500"
+                    :target-directory="currentDirectory"
+                  />
+                </el-tab-pane>
+
+                <el-tab-pane label="背景图" name="backdrop">
+                  <ImageEditor
+                    title="背景图 (Backdrop)"
+                    default-filename="backdrop.jpg"
+                    :default-width="1920"
+                    :default-height="1080"
+                    :target-directory="currentDirectory"
+                  />
+                </el-tab-pane>
+
+                <el-tab-pane label="缩略图" name="landscape">
+                  <ImageEditor
+                    title="缩略图 (Landscape)"
+                    default-filename="landscape.jpg"
+                    :default-width="1280"
+                    :default-height="720"
+                    :target-directory="currentDirectory"
+                  />
+                </el-tab-pane>
+              </el-tabs>
+            </div>
+          </div>
+        </el-aside>
+
+        <!-- 右侧：电影元数据编辑 -->
+        <el-main class="main-content">
+          <MovieEditor
+            v-model="movieData"
+            :target-directory="currentDirectory"
+          />
+        </el-main>
+      </el-container>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import { Film } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import DirectorySelector from './components/DirectorySelector.vue'
+import ImageEditor from './components/ImageEditor.vue'
+import MovieEditor from './components/MovieEditor.vue'
+import { createEmptyMovieNFO } from './utils/nfoSchemas'
+import { parseNFO } from './utils/nfoParser'
+
+const currentDirectory = ref('')
+const movieData = ref(createEmptyMovieNFO())
+const activeImageTab = ref('poster')
+const dirSelector = ref(null)
+
+// 处理目录选择
+const handleDirectorySelected = async (dirPath) => {
+  currentDirectory.value = dirPath
+  
+  // 尝试加载现有的 NFO 文件
+  await loadNFOFile(dirPath)
+}
+
+// 加载 NFO 文件
+const loadNFOFile = async (dirPath) => {
+  try {
+    const nfoPath = await window.api.joinPath(dirPath, 'movie.nfo')
+    const exists = await window.api.checkFileExists(nfoPath)
+
+    if (exists) {
+      const result = await window.api.readNFOFile(nfoPath)
+      
+      if (result.success) {
+        const parsedData = parseNFO(result.content)
+        movieData.value = parsedData
+        ElMessage.success('NFO 文件加载成功')
+      } else {
+        ElMessage.error('读取 NFO 文件失败: ' + result.error)
+        movieData.value = createEmptyMovieNFO()
+      }
+    } else {
+      // 没有 NFO 文件，使用空白数据
+      movieData.value = createEmptyMovieNFO()
+      ElMessage.info('未找到 NFO 文件，将创建新文件')
+    }
+  } catch (error) {
+    ElMessage.error('加载 NFO 文件失败: ' + error.message)
+    movieData.value = createEmptyMovieNFO()
+  }
+}
+
+// 处理刷新
+const handleRefresh = async (dirPath) => {
+  if (dirPath) {
+    await loadNFOFile(dirPath)
+  }
+}
+</script>
+
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+#app {
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+</style>
+
+<style scoped>
+.nfo-editor-app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.app-header {
+  padding: 20px 30px;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+.app-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.title-icon {
+  font-size: 32px;
+  color: #667eea;
+}
+
+.app-subtitle {
+  font-size: 14px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.app-content {
+  flex: 1;
+  overflow: hidden;
+  padding: 16px;
+}
+
+.el-container {
+  height: 100%;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.sidebar {
+  background: #f5f7fa;
+  border-right: 1px solid #e4e7ed;
+  overflow-y: auto;
+}
+
+.sidebar-content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.images-section {
+  flex: 1;
+}
+
+.main-content {
+  padding: 20px;
+  overflow-y: auto;
+  background: white;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+</style>
