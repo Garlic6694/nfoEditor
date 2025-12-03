@@ -37,6 +37,8 @@
                       :default-width="1000"
                       :default-height="1500"
                       :target-directory="currentDirectory"
+                      aspect-ratio="2/3"
+                      enable-crop
                     />
                   </el-tab-pane>
 
@@ -47,6 +49,7 @@
                       :default-width="1920"
                       :default-height="1080"
                       :target-directory="currentDirectory"
+                      aspect-ratio="16/9"
                     />
                   </el-tab-pane>
 
@@ -57,6 +60,7 @@
                       :default-width="1280"
                       :default-height="720"
                       :target-directory="currentDirectory"
+                      aspect-ratio="16/9"
                     />
                   </el-tab-pane>
                 </el-tabs>

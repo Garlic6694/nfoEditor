@@ -14,6 +14,8 @@ const api = {
   readImageFile: (filePath) => ipcRenderer.invoke('read-image-file', filePath),
   saveImageFile: (sourcePath, targetPath, width, height) => 
     ipcRenderer.invoke('save-image-file', sourcePath, targetPath, width, height),
+  saveBase64Image: (base64Data, targetPath) =>
+    ipcRenderer.invoke('save-base64-image', base64Data, targetPath),
   selectImageFile: () => ipcRenderer.invoke('select-image-file'),
   
   // 目录操作
@@ -23,7 +25,8 @@ const api = {
   
   // 路径操作
   joinPath: (...paths) => ipcRenderer.invoke('join-path', ...paths),
-  getBasename: (filePath) => ipcRenderer.invoke('get-basename', filePath)
+  getBasename: (filePath) => ipcRenderer.invoke('get-basename', filePath),
+  renameFile: (oldPath, newPath) => ipcRenderer.invoke('rename-file', oldPath, newPath)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

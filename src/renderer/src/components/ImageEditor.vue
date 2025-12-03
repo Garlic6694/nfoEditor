@@ -72,6 +72,14 @@
               >
                 保存图片
               </el-button>
+              <el-button 
+                v-if="enableCrop && imageData"
+                type="success"
+                @click="autoCropImage"
+                :loading="cropping"
+              >
+                裁切图片
+              </el-button>
               <el-button @click="clearImage" :disabled="!imageData">
                 清除
               </el-button>
@@ -108,6 +116,14 @@ const props = defineProps({
   targetDirectory: {
     type: String,
     default: ''
+  },
+  aspectRatio: {
+    type: String,
+    default: '16/9'
+  },
+  enableCrop: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -118,12 +134,99 @@ const height = ref(props.defaultHeight)
 const filename = ref(props.defaultFilename)
 const saving = ref(false)
 const originalImageInfo = ref(null)
+const cropping = ref(false)
 
 // 图片信息显示
 const imageInfo = computed(() => {
   if (!originalImageInfo.value) return null
   return `原始尺寸: ${originalImageInfo.value.width} × ${originalImageInfo.value.height}`
 })
+
+// 自动裁切图片（居中裁切，宽度减半，高度不变）
+const autoCropImage = async () => {
+  if (!imageData.value || !props.targetDirectory) {
+    ElMessage.warning('请先选择图片和目标目录')
+    return
+  }
+
+  cropping.value = true
+
+  try {
+    // 加载图片获取尺寸
+    const img = new Image()
+    await new Promise((resolve, reject) => {
+      img.onload = resolve
+      img.onerror = reject
+      img.src = imageData.value
+    })
+
+    const originalWidth = img.width
+    const originalHeight = img.height
+    
+    // 裁切尺寸：宽度 = 高度 ÷ 1.5（2:3 比例），高度不变
+    const cropWidth = Math.round(originalHeight / 1.5)
+    const cropHeight = originalHeight
+    
+    // 居中裁切：从 (originalWidth/4, 0) 开始裁切
+    const cropX = Math.round((originalWidth - cropWidth) / 2)
+    const cropY = 0
+
+    // 创建 canvas 进行裁切
+    const canvas = document.createElement('canvas')
+    canvas.width = cropWidth
+    canvas.height = cropHeight
+    const ctx = canvas.getContext('2d')
+    
+    // 绘制裁切后的图片
+    ctx.drawImage(
+      img,
+      cropX, cropY, cropWidth, cropHeight,  // 源区域
+      0, 0, cropWidth, cropHeight            // 目标区域
+    )
+    
+    // 获取裁切后的 base64 数据
+    const croppedImageData = canvas.toDataURL('image/jpeg', 0.9)
+    
+    // 目标文件路径
+    const targetPath = await window.api.joinPath(props.targetDirectory, props.defaultFilename)
+    
+    // 检查是否已存在
+    const exists = await window.api.checkFileExists(targetPath)
+    
+    // 如果存在，重命名为 -old
+    if (exists) {
+      const oldFilename = props.defaultFilename.replace(/\.jpg$/, '-old.jpg')
+      const oldPath = await window.api.joinPath(props.targetDirectory, oldFilename)
+      const renameResult = await window.api.renameFile(targetPath, oldPath)
+      if (!renameResult.success) {
+        ElMessage.warning('备份原文件失败: ' + renameResult.error)
+      }
+    }
+
+    // 保存裁切后的图片
+    const result = await window.api.saveBase64Image(croppedImageData, targetPath)
+    
+    if (result.success) {
+      ElMessage.success(`图片已自动裁切并保存 (${cropWidth}×${cropHeight})`)
+      
+      // 更新预览
+      imageData.value = croppedImageData
+      selectedImagePath.value = targetPath
+      
+      // 更新原始图片信息
+      originalImageInfo.value = {
+        width: cropWidth,
+        height: cropHeight
+      }
+    } else {
+      ElMessage.error('保存裁切图片失败: ' + result.error)
+    }
+  } catch (error) {
+    ElMessage.error('裁切图片失败: ' + error.message)
+  } finally {
+    cropping.value = false
+  }
+}
 
 // 选择图片
 const selectImage = async () => {
@@ -253,7 +356,7 @@ watch(() => props.targetDirectory, async (newDir) => {
 
 .image-preview {
   width: 100%;
-  height: 280px;
+  aspect-ratio: v-bind(aspectRatio);
   border: 2px dashed #dcdfe6;
   border-radius: 4px;
   display: flex;

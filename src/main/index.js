@@ -135,6 +135,22 @@ app.whenReady().then(() => {
       return { success: false, error: error.message }
     }
   })
+
+  // 保存 base64 图片数据
+  ipcMain.handle('save-base64-image', async (event, base64Data, targetPath) => {
+    try {
+      // 移除 data:image/jpeg;base64, 前缀
+      const base64String = base64Data.replace(/^data:image\/\w+;base64,/, '')
+      const buffer = Buffer.from(base64String, 'base64')
+      
+      // 写入文件
+      fs.writeFileSync(targetPath, buffer)
+      
+      return { success: true }
+    } catch (error) {
+      return { success: false, error: error.message }
+    }
+  })
   
   // 列出目录中的文件
   ipcMain.handle('list-directory-files', async (event, dirPath) => {
@@ -195,6 +211,16 @@ app.whenReady().then(() => {
       }
 
       return { success: true, data: [scan(rootPath)] }
+    } catch (error) {
+      return { success: false, error: error.message }
+    }
+  })
+
+  // 重命名文件
+  ipcMain.handle('rename-file', async (event, oldPath, newPath) => {
+    try {
+      fs.renameSync(oldPath, newPath)
+      return { success: true }
     } catch (error) {
       return { success: false, error: error.message }
     }
